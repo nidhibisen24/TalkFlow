@@ -4,6 +4,7 @@ import ConversationView from "./components/ConversationView";
 import OrderSummary from "./components/OrderSummary";
 import LatencyBadge from "./components/LatencyBadge";
 import { startMicCapture } from "./lib/audioCapture";
+import { connectLiveSession } from "./lib/geminiClient";
 
 const INITIAL_TRANSCRIPT = [
   {
@@ -33,81 +34,136 @@ const INITIAL_ORDER_ITEMS = [
   { id: 2, name: "Warm Blueberry Scone", quantity: 1 },
 ];
 
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
 export default function App() {
-  // Turn state can be: "idle" | "listening" | "ai_speaking" | "interrupted"
+  // Real session turn state: "idle" | "listening" | "ai_speaking" | "interrupted"
   const [turnState, setTurnState] = useState("idle");
   const [orderItems] = useState(INITIAL_ORDER_ITEMS);
   const [lastLatencyMs] = useState(180);
   const [isConfirmed] = useState(false);
-  const [transcript] = useState(INITIAL_TRANSCRIPT);
-  const [isSessionRunning, setIsSessionRunning] = useState(false);
+  const [transcript, setTranscript] = useState(INITIAL_TRANSCRIPT);
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const timeoutIdsRef = useRef([]);
+  const sessionRef = useRef(null);
   const stopMicRef = useRef(null);
 
-  const clearAllTimeouts = () => {
-    timeoutIdsRef.current.forEach((id) => clearTimeout(id));
-    timeoutIdsRef.current = [];
-  };
-
-  const stopMicrophone = () => {
+  const endSession = () => {
     if (stopMicRef.current) {
       stopMicRef.current();
       stopMicRef.current = null;
     }
+    if (sessionRef.current) {
+      try {
+        sessionRef.current.close();
+      } catch (err) {
+        console.warn("Error closing session:", err);
+      }
+      sessionRef.current = null;
+    }
+    setTurnState("idle");
+    setIsConnecting(false);
   };
 
   useEffect(() => {
     return () => {
-      clearAllTimeouts();
-      stopMicrophone();
+      endSession();
     };
   }, []);
 
   const handleStartSession = async () => {
-    clearAllTimeouts();
-    stopMicrophone();
-    setIsSessionRunning(true);
+    // If already running or connecting, end session
+    if (sessionRef.current || isConnecting) {
+      endSession();
+      return;
+    }
 
-    // Module 2: Start real microphone capture pipeline & log chunk byte sizes
-    startMicCapture((arrayBuffer) => {
-      console.log("chunk bytes:", arrayBuffer.byteLength);
-    })
-      .then((stop) => {
-        stopMicRef.current = stop;
-      })
-      .catch((err) => {
-        console.warn("Microphone capture could not be started (permissions or device):", err);
+    try {
+      setIsConnecting(true);
+
+      // 1. Establish Gemini Live WebSocket session using ephemeral token
+      const session = await connectLiveSession({
+        onOpen: () => {
+          console.log("[Gemini Live] Session WebSocket connected.");
+          setTurnState("listening");
+          setIsConnecting(false);
+        },
+        onMessage: (message) => {
+          console.log("[Gemini Live Message]:", message);
+
+          // Check and log real-time transcription
+          if (message.serverContent?.inputTranscription?.text) {
+            const userText = message.serverContent.inputTranscription.text;
+            console.log("Input transcription:", userText);
+            setTranscript((prev) => [...prev, { role: "user", text: userText }]);
+          }
+
+          if (message.serverContent?.outputTranscription?.text) {
+            const aiText = message.serverContent.outputTranscription.text;
+            console.log("Output transcription:", aiText);
+            setTranscript((prev) => [...prev, { role: "assistant", text: aiText }]);
+          }
+
+          // Visual state cues based on server events
+          if (message.serverContent?.modelTurn?.parts?.some((p) => p.inlineData)) {
+            setTurnState("ai_speaking");
+          }
+
+          if (message.serverContent?.interrupted) {
+            console.log("[Gemini Live] Interruption signal received from server");
+            setTurnState("interrupted");
+          }
+
+          if (message.serverContent?.turnComplete) {
+            setTurnState("listening");
+          }
+        },
+        onError: (err) => {
+          console.error("[Gemini Live Error]:", err);
+          endSession();
+        },
+        onClose: (event) => {
+          console.log("[Gemini Live Closed]:", event);
+          endSession();
+        },
       });
 
-    // Keep Module 1 fake turnState cycling as-is
-    // Step 1: Listening (immediately)
-    setTurnState("listening");
+      sessionRef.current = session;
 
-    // Step 2: AI Speaking (after 2s)
-    const t1 = setTimeout(() => {
-      setTurnState("ai_speaking");
-    }, 2000);
+      // 2. Start microphone capture and stream base64 PCM16 chunks
+      const stop = await startMicCapture((arrayBuffer) => {
+        if (sessionRef.current) {
+          const base64Chunk = arrayBufferToBase64(arrayBuffer);
+          sessionRef.current.sendRealtimeInput({
+            audio: {
+              data: base64Chunk,
+              mimeType: "audio/pcm;rate=16000",
+            },
+          });
+        }
+      });
 
-    // Step 3: Interrupted / Barge-in (after 4.5s)
-    const t2 = setTimeout(() => {
-      setTurnState("interrupted");
-    }, 4500);
-
-    // Step 4: Back to Listening (after 6.5s)
-    const t3 = setTimeout(() => {
+      stopMicRef.current = stop;
       setTurnState("listening");
-      setIsSessionRunning(false);
-    }, 6500);
-
-    timeoutIdsRef.current = [t1, t2, t3];
+    } catch (err) {
+      console.error("Failed to start Gemini Live session:", err);
+      alert(`Could not start session: ${err.message}\nMake sure backend is running and backend/.env contains a valid GEMINI_API_KEY.`);
+      endSession();
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleResetSession = () => {
-    clearAllTimeouts();
-    stopMicrophone();
-    setIsSessionRunning(false);
-    setTurnState("idle");
+    endSession();
   };
 
   return (
@@ -128,7 +184,11 @@ export default function App() {
             className="btn-primary"
             onClick={handleStartSession}
           >
-            {isSessionRunning ? "🔄 Cycling States..." : "▶ Start Session"}
+            {isConnecting
+              ? "⏳ Connecting..."
+              : turnState !== "idle"
+              ? "⏹ End Session"
+              : "▶ Start Session"}
           </button>
           {turnState !== "idle" && (
             <button
