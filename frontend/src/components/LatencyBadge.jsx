@@ -15,28 +15,29 @@ export default function LatencyBadge() {
 
   return (
     <div className="panel-card latency-panel">
-      <div className="latency-row">
-        <span className="latency-label">Interruption Latency:</span>
+      <div className="latency-header">
+        <div className="latency-title-row">
+          <span className="latency-icon">⚡</span>
+          <span className="latency-label">Interruption Latency</span>
+        </div>
+        <span className="latency-tag">Real Barge-In</span>
+      </div>
+
+      <div className="latency-hero-display">
         <span className="latency-value" id="latency-metric">
           {last !== null ? `${last} ms` : "—"}
         </span>
       </div>
-      <div
-        className="latency-stats-line"
-        id="latency-stats-summary"
-        style={{
-          fontSize: "0.82rem",
-          color: count > 0 ? "var(--text-secondary)" : "var(--text-muted)",
-          marginTop: "2px",
-        }}
-      >
+
+      <div className="latency-stats-line" id="latency-stats-summary">
         {count > 0
           ? `Last interrupt-stop latency: ${last} ms · avg over ${count}: ${avg} ms`
           : "Last interrupt-stop latency: — ms · avg over 0: — ms"}
       </div>
-      <div className="latency-hint">
+
+      <p className="latency-hint">
         Measured from user speech barge-in detection to AI audio output cutoff.
-      </div>
+      </p>
     </div>
   );
 }

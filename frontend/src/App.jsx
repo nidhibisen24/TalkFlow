@@ -259,16 +259,16 @@ export default function App() {
       <header className="app-header">
         <div className="brand-section">
           <div className="brand-icon">⚡</div>
-          <div>
+          <div className="brand-text">
             <h1 className="brand-title">Voice You Can Interrupt</h1>
-            <p className="brand-tagline">Real-Time Barge-In Voice Ordering Assistant</p>
+            <p className="brand-tagline">REAL-TIME BARGE-IN VOICE ORDERING ASSISTANT</p>
           </div>
         </div>
 
         <div className="header-actions">
           <button
             id="start-session-btn"
-            className="btn-primary"
+            className={`btn-primary ${turnState !== "idle" ? "active-session" : ""}`}
             onClick={handleStartSession}
           >
             {isConnecting
@@ -280,16 +280,8 @@ export default function App() {
           {turnState !== "idle" && (
             <button
               id="reset-session-btn"
+              className="btn-secondary"
               onClick={handleResetSession}
-              style={{
-                background: "transparent",
-                border: "1px solid var(--border-subtle)",
-                color: "var(--text-secondary)",
-                borderRadius: "var(--radius-pill)",
-                padding: "8px 16px",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-              }}
             >
               Reset
             </button>

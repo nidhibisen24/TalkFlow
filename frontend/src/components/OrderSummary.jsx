@@ -24,28 +24,28 @@ export default function OrderSummary() {
 
       <ul className="order-items-list" id="order-items-list">
         {items.length === 0 ? (
-          <li
-            className="order-item"
-            style={{
-              color: "var(--text-muted)",
-              justifyContent: "center",
-              fontStyle: "italic",
-            }}
-          >
-            No items in order yet — speak to add
+          <li className="order-item order-empty-state">
+            <span className="empty-icon">🍽️</span>
+            <div className="empty-text">
+              <span className="empty-title">No items in order yet</span>
+              <span className="empty-hint">Speak naturally to order food or drinks</span>
+            </div>
           </li>
         ) : (
           items.map((item, idx) => (
             <li key={item.id || idx} className="order-item">
-              <span className="order-item-desc">{item.name}</span>
-              <span className="order-item-count">x {item.quantity}</span>
+              <div className="order-item-info">
+                <span className="order-item-bullet">•</span>
+                <span className="order-item-desc">{item.name}</span>
+              </div>
+              <span className="order-item-qty">×{item.quantity}</span>
             </li>
           ))
         )}
       </ul>
 
       <div className="order-status-row">
-        <span className="order-status-label">Order Confirmation:</span>
+        <span className="order-status-label">Order Status:</span>
         <span
           className={`confirmed-tag ${confirmed ? "yes" : "no"}`}
           id="order-confirmed-status"

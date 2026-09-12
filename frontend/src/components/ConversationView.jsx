@@ -59,7 +59,7 @@ export default function ConversationView({ turnState = "idle", transcript = [] }
             className={`transcript-message ${line.role === "user" ? "user" : "assistant"}`}
           >
             <span className="message-role">
-              {line.role === "user" ? "You (Customer)" : "Gemini Assistant"}
+              {line.role === "user" ? "You (Customer)" : "BurgerFlow Assistant"}
             </span>
             <div className="message-bubble">{line.text}</div>
           </div>
