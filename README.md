@@ -13,11 +13,27 @@ A low-latency, conversational drive-thru voice assistant that you can naturally 
 
 ## 2. Problem Statement
 
-> You are helping me build a hackathon project called "Voice You Can Interrupt" — a voice ordering assistant with real barge-in interruption, built on React + Vite frontend and a minimal Node/Express backend, using the Gemini Live API.
+> 5
+A Voice You Can Interrupt
+Speak to it in your browser. Hear it answer. Then cut it off mid-sentence, and have it actually stop.
+Speak to it in your browser. Hear it answer. Then cut it off mid-sentence, and have it actually stop.
 
-Traditional voice assistants and IVR systems suffer from rigid turn-taking: once the system starts speaking, it speaks until its pre-rendered audio buffer drains, ignoring user attempts to speak over it or forcing painful delays. In fast-paced real-world environments like restaurant drive-thrus, human speech is naturally fluid—customers hesitate (*"I'd like the, um..."*), correct themselves (*"Wait, no, make that fries instead"*), offer brief backchannels (*"mhm"*), or interrupt the agent when they have heard enough. This project demonstrates true, low-latency barge-in with stateful food ordering using Gemini Live bidirectional streaming.
+That last part is the whole project. Voice demos that only work when you wait politely for your turn are everywhere and are worth nothing. Real conversation is full of interruption. Getting it right means genuinely understanding what your own system is doing at the moment you talk over it, and nothing else on this list will punish a design you do not understand this immediately.
 
----
+What must be true of it
+
+Microphone in the browser, speech out of the speakers, something intelligent in between. Your choice of models, providers, or local anything.
+Interruption works. You start speaking while it is talking. It stops. Not at the end of the sentence, not after the buffer drains. It stops, whatever it was in the middle of doing is abandoned, and what you just said is what it responds to. Nothing upstream keeps running and billing you for audio nobody will hear. Put a number on how fast it stops and say how you measured it.
+It has something to do. Questions over a small document set, taking an order, booking something. A voice interface with nothing behind it cannot be judged and will not be.
+A person who trails off mid-sentence must be neither cut off nor left hanging. "I'd like the, um..." is one situation and "...that's all" is another, and they sound identical for the first second. You will produce both failure modes while building this and so will we.
+
+Your test set
+
+A browser UI and a model behind it. Record 1-2 minutes of continuous conversation showing, at minimum: a clean exchange, a hard interruption partway through an answer, an interruption immediately followed by a new question it answers correctly, and one mid-sentence pause it correctly waits through.
+
+Deliverable: public GitHub URL plus the video link.
+
+Anyone can get it to stop. What we will remember is whether it feels like talking to something: whether it handles "wait, no, the other one," whether it knows an "mhm" is not an interruption. Chase that once the basics hold.
 
 ## 3. Features
 
