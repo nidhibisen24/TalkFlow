@@ -69,6 +69,20 @@ export async function connectLiveSession({ onMessage, onOpen, onError, onClose }
       outputAudioTranscription: {},
       systemInstruction: BURGER_SYSTEM_INSTRUCTION,
       tools: [{ functionDeclarations }],
+      // Module 7: Natural turn-taking tuning
+      // LOW start-of-speech sensitivity plus a short prefix padding reduces
+      // (but does not perfectly eliminate) false barge-in triggers from short sounds like "mhm";
+      // an 800ms silence duration gives room for a mid-sentence thinking pause ("I'd like the, um...")
+      // before the turn is considered finished, without making normal turn-taking feel sluggish.
+      realtimeInputConfig: {
+        automaticActivityDetection: {
+          disabled: false,
+          startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+          endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+          prefixPaddingMs: 20,
+          silenceDurationMs: 800,
+        },
+      },
     },
     callbacks: {
       onopen: onOpen,
