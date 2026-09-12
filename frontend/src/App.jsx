@@ -5,6 +5,7 @@ import OrderSummary from "./components/OrderSummary";
 import LatencyBadge from "./components/LatencyBadge";
 import { startMicCapture } from "./lib/audioCapture";
 import { connectLiveSession } from "./lib/geminiClient";
+import { createPlaybackQueue } from "./lib/audioPlayback";
 
 const INITIAL_TRANSCRIPT = [
   {
@@ -55,11 +56,15 @@ export default function App() {
 
   const sessionRef = useRef(null);
   const stopMicRef = useRef(null);
+  const playbackQueueRef = useRef(null);
 
   const endSession = () => {
     if (stopMicRef.current) {
       stopMicRef.current();
       stopMicRef.current = null;
+    }
+    if (playbackQueueRef.current) {
+      playbackQueueRef.current.reset();
     }
     if (sessionRef.current) {
       try {
@@ -89,6 +94,13 @@ export default function App() {
     try {
       setIsConnecting(true);
 
+      // Initialize or reset audio playback queue
+      if (!playbackQueueRef.current) {
+        playbackQueueRef.current = createPlaybackQueue();
+      } else {
+        playbackQueueRef.current.reset();
+      }
+
       // 1. Establish Gemini Live WebSocket session using ephemeral token
       const session = await connectLiveSession({
         onOpen: () => {
@@ -112,8 +124,23 @@ export default function App() {
             setTranscript((prev) => [...prev, { role: "assistant", text: aiText }]);
           }
 
-          // Visual state cues based on server events
-          if (message.serverContent?.modelTurn?.parts?.some((p) => p.inlineData)) {
+          // Module 4: Enqueue raw audio data for speaker playback
+          const parts = message.serverContent?.modelTurn?.parts;
+          let hasAudioChunk = false;
+
+          if (Array.isArray(parts)) {
+            for (const part of parts) {
+              if (part.inlineData?.data) {
+                playbackQueueRef.current?.enqueueChunk(part.inlineData.data);
+                hasAudioChunk = true;
+              }
+            }
+          } else if (message.data) {
+            playbackQueueRef.current?.enqueueChunk(message.data);
+            hasAudioChunk = true;
+          }
+
+          if (hasAudioChunk) {
             setTurnState("ai_speaking");
           }
 
