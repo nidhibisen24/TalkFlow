@@ -7,33 +7,13 @@ import { startMicCapture } from "./lib/audioCapture";
 import { connectLiveSession } from "./lib/geminiClient";
 import { createPlaybackQueue } from "./lib/audioPlayback";
 import { recordInterruptStop } from "./lib/latency";
+import { resetOrder } from "./tools/orderTools";
 
 const INITIAL_TRANSCRIPT = [
   {
     role: "assistant",
-    text: "Welcome to DriveThru Express! What can I prepare fresh for you today?",
+    text: "Welcome to BurgerFlow! I can take your order for burgers, fries, drinks, and salads. What can I get started for you?",
   },
-  {
-    role: "user",
-    text: "Hi! I'd like two iced caramel macchiatos...",
-  },
-  {
-    role: "assistant",
-    text: "Two iced caramel macchiatos! Would you prefer oat milk, almond, or whole—",
-  },
-  {
-    role: "user",
-    text: "Wait, actually make that oat milk! And could you also add a blueberry scone?",
-  },
-  {
-    role: "assistant",
-    text: "Got it! Switched both to oat milk and added one warm blueberry scone. Anything else?",
-  },
-];
-
-const INITIAL_ORDER_ITEMS = [
-  { id: 1, name: "Iced Caramel Macchiato (Oat Milk)", quantity: 2 },
-  { id: 2, name: "Warm Blueberry Scone", quantity: 1 },
 ];
 
 function arrayBufferToBase64(buffer) {
@@ -49,9 +29,7 @@ function arrayBufferToBase64(buffer) {
 export default function App() {
   // Real session turn state: "idle" | "listening" | "ai_speaking" | "interrupted"
   const [turnState, setTurnState] = useState("idle");
-  const [orderItems] = useState(INITIAL_ORDER_ITEMS);
   const [lastLatencyMs] = useState(180);
-  const [isConfirmed] = useState(false);
   const [transcript, setTranscript] = useState(INITIAL_TRANSCRIPT);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isInterruptedFlash, setIsInterruptedFlash] = useState(false);
@@ -82,6 +60,7 @@ export default function App() {
       }
       sessionRef.current = null;
     }
+    resetOrder();
     isAiTurnActiveRef.current = false;
     setIsInterruptedFlash(false);
     setTurnState("idle");
@@ -294,7 +273,7 @@ export default function App() {
 
         {/* Right Column: Order Summary + Latency Badge stacked */}
         <section className="column-right">
-          <OrderSummary orderItems={orderItems} isConfirmed={isConfirmed} />
+          <OrderSummary />
           <LatencyBadge lastLatencyMs={lastLatencyMs} />
         </section>
       </main>

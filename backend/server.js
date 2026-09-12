@@ -38,10 +38,6 @@ app.post("/api/token", async (req, res) => {
     const token = await tokenCreator.create({
       config: {
         uses: 1,
-        liveConnectConstraints: {
-          model: "gemini-3.1-flash-live-preview",
-          config: { responseModalities: ["AUDIO"] },
-        },
       },
     });
 
