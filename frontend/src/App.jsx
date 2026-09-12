@@ -3,6 +3,7 @@ import "./styles.css";
 import ConversationView from "./components/ConversationView";
 import OrderSummary from "./components/OrderSummary";
 import LatencyBadge from "./components/LatencyBadge";
+import { startMicCapture } from "./lib/audioCapture";
 
 const INITIAL_TRANSCRIPT = [
   {
@@ -42,21 +43,44 @@ export default function App() {
   const [isSessionRunning, setIsSessionRunning] = useState(false);
 
   const timeoutIdsRef = useRef([]);
+  const stopMicRef = useRef(null);
 
   const clearAllTimeouts = () => {
     timeoutIdsRef.current.forEach((id) => clearTimeout(id));
     timeoutIdsRef.current = [];
   };
 
+  const stopMicrophone = () => {
+    if (stopMicRef.current) {
+      stopMicRef.current();
+      stopMicRef.current = null;
+    }
+  };
+
   useEffect(() => {
-    return () => clearAllTimeouts();
+    return () => {
+      clearAllTimeouts();
+      stopMicrophone();
+    };
   }, []);
 
-  const handleStartSession = () => {
+  const handleStartSession = async () => {
     clearAllTimeouts();
+    stopMicrophone();
     setIsSessionRunning(true);
 
-    // Requirement: cycle turnState through idle -> listening -> ai_speaking -> interrupted -> listening
+    // Module 2: Start real microphone capture pipeline & log chunk byte sizes
+    startMicCapture((arrayBuffer) => {
+      console.log("chunk bytes:", arrayBuffer.byteLength);
+    })
+      .then((stop) => {
+        stopMicRef.current = stop;
+      })
+      .catch((err) => {
+        console.warn("Microphone capture could not be started (permissions or device):", err);
+      });
+
+    // Keep Module 1 fake turnState cycling as-is
     // Step 1: Listening (immediately)
     setTurnState("listening");
 
@@ -81,6 +105,7 @@ export default function App() {
 
   const handleResetSession = () => {
     clearAllTimeouts();
+    stopMicrophone();
     setIsSessionRunning(false);
     setTurnState("idle");
   };
