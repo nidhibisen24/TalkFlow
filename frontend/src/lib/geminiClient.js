@@ -57,7 +57,15 @@ export async function connectLiveSession({ onMessage, onOpen, onError, onClose }
     },
     callbacks: {
       onopen: onOpen,
-      onmessage: onMessage,
+      onmessage: (message) => {
+        // Interruption detection hook
+        if (message.serverContent?.interrupted === true) {
+          console.warn("[geminiClient] serverContent.interrupted === true received from Gemini");
+        }
+        if (typeof onMessage === "function") {
+          onMessage(message);
+        }
+      },
       onerror: onError,
       onclose: onClose,
     },

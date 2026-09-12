@@ -3,7 +3,8 @@
  *
  * Audio playback queue for Gemini Live 24kHz PCM16 audio output.
  * Decodes base64 PCM16 chunks, converts to Float32, resamples if necessary,
- * and seamlessly schedules AudioBufferSourceNodes on a continuous timeline.
+ * seamlessly schedules AudioBufferSourceNodes, and supports instant hard-stop
+ * barge-in interruption.
  */
 
 export class AudioPlaybackQueue {
@@ -21,17 +22,37 @@ export class AudioPlaybackQueue {
     this.nextStartTime = 0;
 
     // Array holding currently scheduled / active AudioBufferSourceNodes
-    // (Will be used in Module 5 for hard-stop barge-in interruption)
     this.activeSources = [];
+
+    // Monotonically-increasing turn counter to drop late/out-of-order chunks across interruptions
+    this.currentTurnId = 0;
+  }
+
+  /**
+   * Advances turn ID when a new AI response turn begins.
+   * @returns {number} The new turn ID
+   */
+  startNewTurn() {
+    this.currentTurnId++;
+    return this.currentTurnId;
   }
 
   /**
    * Enqueues and schedules a base64-encoded PCM16 audio chunk.
    *
    * @param {string} base64PcmChunk - Little-endian 16-bit signed PCM at 24kHz
+   * @param {number} [turnId] - The turnId current when the chunk was received
    */
-  enqueueChunk(base64PcmChunk) {
+  enqueueChunk(base64PcmChunk, turnId) {
     if (!base64PcmChunk) return;
+
+    // Defensive guard: drop chunk if turnId no longer matches current active turn
+    if (turnId !== undefined && turnId !== this.currentTurnId) {
+      console.warn(
+        `[AudioPlayback] Dropping out-of-order/interrupted chunk for turnId=${turnId} (active=${this.currentTurnId})`
+      );
+      return;
+    }
 
     // Resume AudioContext if suspended (browser autoplay policy)
     if (this.audioContext.state === "suspended") {
@@ -113,10 +134,35 @@ export class AudioPlaybackQueue {
   }
 
   /**
+   * Instantly and synchronously stops all currently scheduled and playing audio.
+   * Increments turnId so any delayed or in-flight chunks are dropped immediately.
+   */
+  hardStop() {
+    // 1. Advance turn counter to invalidate any subsequent chunks from the interrupted turn
+    this.currentTurnId++;
+
+    // 2. Synchronously stop and disconnect every active AudioBufferSourceNode
+    for (const source of this.activeSources) {
+      try {
+        source.stop(0);
+        source.disconnect();
+      } catch {
+        // Safe to ignore if node already ended naturally
+      }
+    }
+
+    // 3. Clear active sources list
+    this.activeSources = [];
+
+    // 4. Reset nextStartTime to current context time
+    this.nextStartTime = this.audioContext.currentTime;
+  }
+
+  /**
    * Resets the playback queue and running timestamp.
    */
   reset() {
-    this.activeSources = [];
+    this.hardStop();
     this.nextStartTime = 0;
   }
 }
