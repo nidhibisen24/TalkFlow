@@ -202,12 +202,12 @@ The latency metric displayed in the UI measures the **perceived, end-to-end roun
 
 | Test Name | Result | Notes |
 |---|---|---|
-| 1. Clean exchange | [Pass / Fail] | *[Notes on spoken clarity and turnaround]* |
-| 2. Hard interruption | [Pass / Fail] | *[Notes on instant cutoff and visual flash]* |
-| 3. Interruption + new question | [Pass / Fail] | *[Notes on context isolation between turns]* |
-| 4. Mid-sentence hesitation | [Pass / Fail] | *[Notes on 800ms silence tolerance]* |
-| 5. Correction ("make that...") | [Pass / Fail] | *[Notes on function calling item updates]* |
-| 6. Backchannel ("mhm") | [Pass / Fail] | *[Notes on LOW sensitivity non-interruption]* |
+| 1. Clean exchange | Pass | - |
+| 2. Hard interruption | Pass |255 ms |
+| 3. Interruption + new question | Pass| 292 ms|
+| 4. Mid-sentence hesitation | Pass | - |
+| 5. Correction ("make that...") | Pass | 355 ms |
+| 6. Backchannel ("mhm") | Pass | - |
 
 ---
 
