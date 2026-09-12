@@ -7,6 +7,8 @@
  * barge-in interruption.
  */
 
+import { recordAudioStop } from "./latency";
+
 export class AudioPlaybackQueue {
   constructor() {
     // 1. Initialize AudioContext at 24kHz if supported, otherwise fallback to native rate
@@ -153,6 +155,9 @@ export class AudioPlaybackQueue {
 
     // 3. Clear active sources list
     this.activeSources = [];
+
+    // Module 8: Record audio stop timestamp when playback is silenced
+    recordAudioStop();
 
     // 4. Reset nextStartTime to current context time
     this.nextStartTime = this.audioContext.currentTime;

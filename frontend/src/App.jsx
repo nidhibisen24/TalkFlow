@@ -6,7 +6,7 @@ import LatencyBadge from "./components/LatencyBadge";
 import { startMicCapture } from "./lib/audioCapture";
 import { connectLiveSession } from "./lib/geminiClient";
 import { createPlaybackQueue } from "./lib/audioPlayback";
-import { recordInterruptStop } from "./lib/latency";
+import { clearSpeechStart } from "./lib/latency";
 import { resetOrder } from "./tools/orderTools";
 
 const INITIAL_TRANSCRIPT = [
@@ -29,10 +29,14 @@ function arrayBufferToBase64(buffer) {
 export default function App() {
   // Real session turn state: "idle" | "listening" | "ai_speaking" | "interrupted"
   const [turnState, setTurnState] = useState("idle");
-  const [lastLatencyMs] = useState(180);
+  const turnStateRef = useRef("idle");
   const [transcript, setTranscript] = useState(INITIAL_TRANSCRIPT);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isInterruptedFlash, setIsInterruptedFlash] = useState(false);
+
+  useEffect(() => {
+    turnStateRef.current = turnState;
+  }, [turnState]);
 
   const sessionRef = useRef(null);
   const stopMicRef = useRef(null);
@@ -61,6 +65,7 @@ export default function App() {
       sessionRef.current = null;
     }
     resetOrder();
+    clearSpeechStart();
     isAiTurnActiveRef.current = false;
     setIsInterruptedFlash(false);
     setTurnState("idle");
@@ -102,13 +107,11 @@ export default function App() {
 
           // Task 3: Check for serverContent.interrupted as the VERY FIRST check
           if (message.serverContent?.interrupted === true) {
-            const tAudioStop = performance.now();
-            recordInterruptStop(tAudioStop);
             console.warn(
-              `[Gemini Live] Interruption triggered by server at t=${tAudioStop.toFixed(2)}ms`
+              `[Gemini Live] Interruption triggered by server at t=${performance.now().toFixed(2)}ms`
             );
 
-            // 1. Synchronously hard-stop audio playback
+            // 1. Synchronously hard-stop audio playback (records audio stop latency)
             playbackQueueRef.current?.hardStop();
             isAiTurnActiveRef.current = false;
 
@@ -175,6 +178,7 @@ export default function App() {
           if (message.serverContent?.turnComplete) {
             isAiTurnActiveRef.current = false;
             setTurnState("listening");
+            clearSpeechStart();
           }
         },
         onError: (err) => {
@@ -191,17 +195,22 @@ export default function App() {
 
       // 2. Start microphone capture and stream base64 PCM16 chunks continuously
       // (Mic runs uninterrupted across all AI turns and barge-ins)
-      const stop = await startMicCapture((arrayBuffer) => {
-        if (sessionRef.current) {
-          const base64Chunk = arrayBufferToBase64(arrayBuffer);
-          sessionRef.current.sendRealtimeInput({
-            audio: {
-              data: base64Chunk,
-              mimeType: "audio/pcm;rate=16000",
-            },
-          });
+      const stop = await startMicCapture(
+        (arrayBuffer) => {
+          if (sessionRef.current) {
+            const base64Chunk = arrayBufferToBase64(arrayBuffer);
+            sessionRef.current.sendRealtimeInput({
+              audio: {
+                data: base64Chunk,
+                mimeType: "audio/pcm;rate=16000",
+              },
+            });
+          }
+        },
+        {
+          getIsAiSpeaking: () => turnStateRef.current === "ai_speaking",
         }
-      });
+      );
 
       stopMicRef.current = stop;
       setTurnState("listening");
@@ -274,7 +283,7 @@ export default function App() {
         {/* Right Column: Order Summary + Latency Badge stacked */}
         <section className="column-right">
           <OrderSummary />
-          <LatencyBadge lastLatencyMs={lastLatencyMs} />
+          <LatencyBadge />
         </section>
       </main>
     </div>
