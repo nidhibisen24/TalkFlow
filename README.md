@@ -233,7 +233,7 @@ To keep the focus strictly on real-time voice interaction and barge-in mechanics
 
 ## 14. Demo Video
 
-Demo video: <link>
+Demo video: https://drive.google.com/file/d/16YkVrTIEPxOnGYMuXFjb2pDvJCBsGLGU/view?usp=sharing
 
 ---
 
