@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 
 const STATE_CONFIG = {
   idle: {
@@ -25,6 +25,13 @@ const STATE_CONFIG = {
 
 export default function ConversationView({ turnState = "idle", transcript = [] }) {
   const currentState = STATE_CONFIG[turnState] || STATE_CONFIG.idle;
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, [transcript]);
 
   return (
     <div className="panel-card conversation-panel">
@@ -45,7 +52,7 @@ export default function ConversationView({ turnState = "idle", transcript = [] }
       </div>
 
       {/* Scrollable Transcript List */}
-      <div className="transcript-list" id="transcript-container">
+      <div className="transcript-list" id="transcript-container" ref={containerRef}>
         {transcript.map((line, index) => (
           <div
             key={index}

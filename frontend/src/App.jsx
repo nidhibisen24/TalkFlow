@@ -42,6 +42,7 @@ export default function App() {
   const stopMicRef = useRef(null);
   const playbackQueueRef = useRef(null);
   const isAiTurnActiveRef = useRef(false);
+  const assistantTurnActiveRef = useRef(false);
   const flashTimeoutRef = useRef(null);
 
   const endSession = () => {
@@ -67,6 +68,7 @@ export default function App() {
     resetOrder();
     clearSpeechStart();
     isAiTurnActiveRef.current = false;
+    assistantTurnActiveRef.current = false;
     setIsInterruptedFlash(false);
     setTurnState("idle");
     setIsConnecting(false);
@@ -114,6 +116,7 @@ export default function App() {
             // 1. Synchronously hard-stop audio playback (records audio stop latency)
             playbackQueueRef.current?.hardStop();
             isAiTurnActiveRef.current = false;
+            assistantTurnActiveRef.current = false;
 
             // 2. Trigger brief 400ms visual flash
             setIsInterruptedFlash(true);
@@ -136,13 +139,33 @@ export default function App() {
           if (message.serverContent?.inputTranscription?.text) {
             const userText = message.serverContent.inputTranscription.text;
             console.log("Input transcription:", userText);
+            assistantTurnActiveRef.current = false;
             setTranscript((prev) => [...prev, { role: "user", text: userText }]);
           }
 
           if (message.serverContent?.outputTranscription?.text) {
             const aiText = message.serverContent.outputTranscription.text;
-            console.log("Output transcription:", aiText);
-            setTranscript((prev) => [...prev, { role: "assistant", text: aiText }]);
+            console.log("Output transcription chunk:", aiText);
+
+            setTranscript((prev) => {
+              // Accumulate into current assistant message if turn is active
+              if (
+                assistantTurnActiveRef.current &&
+                prev.length > 0 &&
+                prev[prev.length - 1].role === "assistant"
+              ) {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  text: updated[updated.length - 1].text + aiText,
+                };
+                return updated;
+              } else {
+                // Start of a new assistant response bubble
+                assistantTurnActiveRef.current = true;
+                return [...prev, { role: "assistant", text: aiText }];
+              }
+            });
           }
 
           // Enqueue raw audio data for speaker playback, tagged with turnId
@@ -177,6 +200,7 @@ export default function App() {
 
           if (message.serverContent?.turnComplete) {
             isAiTurnActiveRef.current = false;
+            assistantTurnActiveRef.current = false;
             setTurnState("listening");
             clearSpeechStart();
           }
